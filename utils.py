@@ -1,4 +1,9 @@
 import fitz  # PyMuPDF
+import google.generativeai as genai
+import json
+
+# Replace with your Gemini API key
+genai.configure(api_key="AIzaSyAL-MjVLwrEybLGihXvH1cZ41tqjYpAlpw")
 
 def extract_text_from_pdf(file):
     doc = fitz.open(stream=file.read(), filetype="pdf")
@@ -9,61 +14,34 @@ def extract_text_from_pdf(file):
             break
     return text
 
-dnfi_keywords = {
-    "real estate": "DNFI",
-    "estate": "DNFI",
-    "law firm": "DNFI",
-    "legal": "DNFI",
-    "accounting": "DNFI",
-    "audit": "DNFI",
-    "tax": "DNFI",
-    "casino": "DNFI",
-    "betting": "DNFI",
-    "lottery": "DNFI",
-    "hotel": "DNFI",
-    "hospitality": "DNFI",
-    "supermarket": "DNFI",
-    "retail": "DNFI",
-    "jewelry": "DNFI",
-    "luxury": "DNFI",
-    "car dealer": "DNFI",
-    "auto dealer": "DNFI",
-    "precious": "DNFI",
-    "mining": "DNFI",
-    "consulting": "DNFI",
-    "advisory": "DNFI",
-    "non-profit": "DNFI",
-    "ngo": "DNFI",
-    "charity": "DNFI",
-    "mortgage": "DNFI",
-    "clearing": "DNFI",
-    "freight": "DNFI",
-    "farming": "DNFI",
-    "construction": "DNFI",
-    "export": "DNFI",
-    "import": "DNFI",
-    "investment": "DNFI",
-    "pharmacy": "DNFI",
-    "oil": "DNFI",
-    "gas": "DNFI"
-}
+def check_scuML_with_gemini(text):
+    prompt = f"""
+You are an AI assistant trained on Nigeria's EFCC SCUML regulations.
 
-def check_scuML_keywords(text):
-    matched_keywords = []
+Below is a business objective from a company's Memorandum of Association (MoA):
 
-    for keyword in dnfi_keywords:
-        if keyword in text.lower():
-            matched_keywords.append(keyword)
+\"\"\"{text}\"\"\"
 
-    if matched_keywords:
+Does this company require SCUML registration?
+
+Respond in JSON format with:
+- "status": "Required" or "Not Required"
+- "explanation": a short reason
+- "keywords": list of up to 5 important business keywords
+"""
+
+    try:
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(prompt)
+        result = json.loads(response.text)
         return {
-            "status": "Required",
-            "matched_keywords": matched_keywords[:5],
-            "explanation": f"The following business keywords were detected: {', '.join(matched_keywords[:5])}. These match SCUML-listed DNFI categories."
+            "status": result.get("status", "Unknown"),
+            "explanation": result.get("explanation", "No explanation provided."),
+            "keywords": result.get("keywords", [])
         }
-    else:
+    except Exception as e:
         return {
-            "status": "Not Required",
-            "matched_keywords": [],
-            "explanation": "No SCUML-triggering business objective found in the document."
+            "status": "Error",
+            "explanation": str(e),
+            "keywords": []
         }
